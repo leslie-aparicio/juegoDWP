@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        canvas {
+            background-image: url('fondo.jpg'); /* Reemplaza con la ruta de tu imagen */
+            background-size: cover;
+            display: block;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego JavaScript</title>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Ajustar canvas al tamaño de la ventana
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        // Variables del juego
+        let x, y, key, keyState, score, obstacles, coins, gameInterval, isGameOver;
+
+        // Tamaños
+        const playerSize = 200; // Tamaño de la serpiente ajustado
+        const obstacleWidth = 80;
+        const obstacleHeight = 250;
+
+        // Cargar imágenes
+        const player = new Image();
+        player.src = "serp.png"; // Imagen de la serpiente
+        const cactusImage = new Image();
+        cactusImage.src = "cactus.png"; // Imagen del cactus
+        const coinImage = new Image();
+        coinImage.src = "monedas.png"; // Imagen de la moneda
+
+        // Inicializar el juego
+        function initGame() {
+            x = 50;
+            y = canvas.height / 2 - playerSize / 2;
+            key = null;
+            keyState = null;
+            score = 0;
+            isGameOver = false;
+
+            // Obstáculos iniciales
+            obstacles = [
+                { x: canvas.width, y: Math.random() * (canvas.height - obstacleHeight), width: obstacleWidth, height: obstacleHeight },
+                { x: canvas.width + 600, y: Math.random() * (canvas.height - obstacleHeight), width: obstacleWidth, height: obstacleHeight },
+                { x: canvas.width + 1200, y: Math.random() * (canvas.height - obstacleHeight), width: obstacleWidth, height: obstacleHeight }
+            ];
+
+            // Monedas iniciales
+            coins = [
+                { x: canvas.width + 300, y: Math.random() * (canvas.height - 40), width: 40, height: 40 },
+                { x: canvas.width + 900, y: Math.random() * (canvas.height - 40), width: 40, height: 40 }
+            ];
+
+            // Iniciar el bucle del juego
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, 20);
+        }
+
+        // Detectar teclas
+        document.onkeydown = function (e) {
+            keyState = "keydown";
+            key = e.key;
+        };
+        document.onkeyup = function () {
+            keyState = "keyup";
+        };
+
+        // Dibujar serpiente
+        function drawPlayer() {
+            ctx.drawImage(player, x, y, playerSize, playerSize);
+        }
+
+        // Dibujar obstáculos
+        function drawObstacles() {
+            for (let obstacle of obstacles) {
+                ctx.drawImage(cactusImage, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+
+                // Mover obstáculos
+                obstacle.x -= 5;
+
+                // Regenerar si salen de pantalla
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacle.x = canvas.width + Math.random() * 500;
+                    obstacle.y = Math.random() * (canvas.height - obstacle.height);
+                }
+
+                // Detección de colisión precisa
+                if (handleCollision(obstacle)) {
+                    endGame();
+                }
+            }
+        }
+
+        // Dibujar monedas
+        function drawCoins() {
+            for (let coin of coins) {
+                ctx.drawImage(coinImage, coin.x, coin.y, coin.width, coin.height);
+
+                // Mover monedas
+                coin.x -= 5;
+
+                // Regenerar si salen de pantalla
+                if (coin.x + coin.width < 0) {
+                    coin.x = canvas.width + Math.random() * 500;
+                    coin.y = Math.random() * (canvas.height - coin.height);
+                }
+
+                // Comprobar si se recoge la moneda
+                if (handleCoinCollection(coin)) {
+                    score += 10;
+                    coin.x = canvas.width + Math.random() * 500;
+                    coin.y = Math.random() * (canvas.height - coin.height);
+                }
+            }
+        }
+
+        // Comprobar colisiones
+        function handleCollision(obstacle) {
+            const collisionMargin = 20; // Márgenes ajustados
+            return (
+                x + collisionMargin < obstacle.x + obstacle.width - collisionMargin &&
+                x + playerSize - collisionMargin > obstacle.x + collisionMargin &&
+                y + collisionMargin < obstacle.y + obstacle.height - collisionMargin &&
+                y + playerSize - collisionMargin > obstacle.y + collisionMargin
+            );
+        }
+
+        // Comprobar si se recoge una moneda
+        function handleCoinCollection(coin) {
+            return (
+                x < coin.x + coin.width &&
+                x + playerSize > coin.x &&
+                y < coin.y + coin.height &&
+                y + playerSize > coin.y
+            );
+        }
+
+        // Terminar el juego
+        function endGame() {
+            clearInterval(gameInterval);
+            isGameOver = true;
+            ctx.fillStyle = "red";
+            ctx.font = "50px Arial";
+            ctx.fillText("¡Colisión!", canvas.width / 2 - 100, canvas.height / 2);
+            setTimeout(initGame, 2000);
+        }
+
+        // Bucle principal
+        function gameLoop() {
+            if (isGameOver) return;
+
+            // Movimiento del jugador
+            if (keyState === "keydown") {
+                if (key === "w" && y > 0) y -= 5;
+                if (key === "s" && y + playerSize < canvas.height) y += 5;
+                if (key === "a" && x > 0) x -= 5;
+                if (key === "d" && x + playerSize < canvas.width) x += 5;
+            }
+
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar elementos
+            drawPlayer();
+            drawObstacles();
+            drawCoins();
+
+            // Mostrar puntuación
+            ctx.fillStyle = "black";
+            ctx.font = "30px Arial";
+            ctx.fillText("Puntuación: " + score, 20, 50);
+        }
+
+        // Iniciar el juego
+        initGame();
+    </script>
+</body>
+</html>
